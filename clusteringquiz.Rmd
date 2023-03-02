@@ -1,0 +1,84 @@
+## Clustering  
+
+Libraries  
+```{r, include = FALSE}
+library(tidyverse)
+library(tidymodels)
+library(cluster)
+library(factoextra)
+library(dendextend)
+#library(cluster) #algorithms for clustering
+#library(factoextra) #visualization
+```
+
+read in data
+```{r}
+trucks = read_csv("trucks-1.csv")
+str(trucks)
+summary(trucks)
+```
+
+Preparing the data. Remove missingness (there is none in this data) or impute missing values.  
+
+We also scale the data. This is critical for quantitative data to ensure that no variable (particularly a variable with large values, skews the data and the resulting clusters).  
+```{r}
+trucks_scaled = scale(trucks) 
+summary(trucks_scaled)
+#scale works by calculating the mean and standard deviation of the entire variable, then scales each element by subtracting the mean and dividing by the standard deviation  
+```
+
+Perform k-means clustering with a pre-specified number of clusters.   
+```{r}
+set.seed(64)
+clusts = 
+  tibble(k = 2) %>% #try from 1 to 10 clusters
+  mutate(
+    kclust = map(k, ~kmeans(points, .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, points)
+  )
+
+clusts
+```
+
+Create relevant objects  
+```{r}
+clusters =
+  clusts %>%
+  unnest(cols = c(tidied))
+
+assignments = 
+  clusts %>% 
+  unnest(cols = c(augmented))
+
+clusterings = 
+  clusts %>%
+  unnest(cols = c(glanced))
+```
+
+Because we are clustering across multiple variables (more than 2 or 3) it's very difficult to plot the clusters in a meaningful way. However, we can look at a plot to see the performance of the clusters.
+```{r}
+ggplot(clusterings, aes(k, tot.withinss)) +
+  geom_line() +
+  geom_point() + theme_bw()
+```
+In the plot above, we are looking for the "elbow". This corresponds to the "best" number of clusters. For this data, 3 or 4 clusters would be appropriate.  
+
+Now we can cluster. Let's go with 4 clusters.  
+```{r}
+cust_clust = kmeans(trucks_scaled, centers = 4) #run k-means clustering with k = 4
+cust_clust #view results
+```
+
+Use augment to append the clusters to the data (append to the non-scaled data)  
+```{r}
+customers = augment(cust_clust, customers)
+head(customers)
+```
+We can then explore the data looking for commonalities within the clusters. Note: Visualization would take place on the non-scaled data.    
+
+
+
+
+
